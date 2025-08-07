@@ -1,2 +1,2 @@
-# roaster
+# Roaster
 Image roaster and validator
