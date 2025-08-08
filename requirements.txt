@@ -1,5 +1,11 @@
-aiogram==3.4
-openai
+aiogram~=3.4
+
+openai>=1.0.0,<2.0.0
+
+# если перейдёте на 3.10+ — можно свежую pandas
+pandas>=2.3 ; python_version >= "3.10"
+
+
 python-dotenv
 requests
 beautifulsoup4
