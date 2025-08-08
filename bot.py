@@ -41,9 +41,9 @@ album_tasks = {}
 
 # Словарь с режимами и их названиями
 MODE_MAPPING = {
-    "basic": "Basic",
-    "alfa3d": "Alfa3D",
-    # "advanced": "Advanced"
+    "basic": "Basic 💼",
+    "alfa3d": "Alfa3D 🅰️",
+    "roaster": "Roaster 🔥"
 }
 
 # Обработчик команды /start, чтобы показать кнопки выбора режима
@@ -72,12 +72,12 @@ async def on_start(message: Message, state: FSMContext, command: CommandObject):
     else:
         await message.answer(
             "Привет! Отправь одно или несколько изображений (можно альбомом), "
-            "и я оценю их как единое портфолио 🖼️. "
-            "По умолчанию бот оценивает без контекста, но есть режим Alfa3D, "
-            "который оценивает картинки с 3D в стиле тг-канала Альфа-Банка"
-            , reply_markup=make_main_menu(mode if not new_mode else new_mode)
+            "и я оценю их как единое портфолио. "
+            "В режиме Basic 💼 (по умолчанию) оцениваю без контекста, подсвечивая сильные и слабые стороны, "
+            "в режиме Alfa3D 🅰️ — оцениваю как 3D-гуру из Альфа-Банка, "
+            "в режиме Roaster 🔥 — как безбашенный арт-директор"
+            , reply_markup=make_mode_inline_kb(mode if not new_mode else new_mode)
         )
-
 
 # Обработка выбранного режима через callback
 @dp.callback_query(lambda c: c.data.startswith("mode_"))
@@ -91,8 +91,8 @@ async def mode_handler(callback_query: types.CallbackQuery, state: FSMContext):
         response = "Вы выбрали режим 'Basic'. Отправьте изображение или несколько для оценки."
     elif mode == "alfa3d":
         response = "Вы выбрали режим 'Alfa3D'. Отправьте изображения или несколько для оценки с точки зрения 3D в стиле Альфы."
-    # elif mode == "advanced":
-    #     response = "Вы выбрали режим 'Advanced'. Отправьте изображения для глубокого анализа."
+    elif mode == "roaster":
+        response = "Вы выбрали режим 'Roaster'. Отправьте изображения для безбашенной оценки."
 
     # Ответ на callback
     await callback_query.answer()
@@ -148,8 +148,8 @@ async def cmd_menu(message: Message, state: FSMContext):
     mode = (await state.get_data()).get("mode", "basic")
     await message.answer("Меню:", reply_markup=make_main_menu(mode))
 
-# Кнопка «🔁 Сменить режим» или команда /mode — показать список режимов
-@dp.message(F.text == "🔁 Сменить режим")
+# Кнопка «📋 Сменить режим» или команда /mode — показать список режимов
+@dp.message(F.text == "📋 Сменить режим")
 @dp.message(Command("mode"))
 async def cmd_mode(message: Message, state: FSMContext):
     mode = (await state.get_data()).get("mode", "basic")
@@ -171,8 +171,8 @@ async def mode_switch(cb: CallbackQuery, state: FSMContext):
     await cb.answer("Режим обновлён")
     # Обновим главное меню с актуальным режимом
     await cb.message.answer(
-        f"Режим переключен на: {MODE_MAPPING.get(new_mode, new_mode)}",
-        reply_markup=make_main_menu(new_mode)
+        f"Режим переключен на: {MODE_MAPPING.get(new_mode, new_mode)} — присылайте изображение или несколько",
+        # reply_markup=make_main_menu(new_mode)
     )
 
 
@@ -180,7 +180,7 @@ def make_main_menu(current_mode: str) -> ReplyKeyboardMarkup:
     title = MODE_MAPPING.get(current_mode, current_mode)
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text=f"⚙️ Режим: {title}")],
+            [KeyboardButton(text=f"Текущий режим: {title}")],
             [KeyboardButton(text="📋 Сменить режим"), KeyboardButton(text="🙈 Скрыть меню")],
         ],
         resize_keyboard=True,
@@ -198,7 +198,7 @@ async def hide_menu(message: Message):
 def make_mode_inline_kb(current_mode: str):
     b = InlineKeyboardBuilder()
     for key, name in MODE_MAPPING.items():
-        txt = f"✅ {name}" if key == current_mode else name
+        txt = f"⦿ {name}" if key == current_mode else name
         b.button(text=txt, callback_data=f"mode:{key}")
     b.adjust(3)  # по 3 кнопки в строке
     return b.as_markup()
