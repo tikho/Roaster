@@ -11,6 +11,14 @@ from utils.gpt_client import evaluate_portfolio
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import BufferedInputFile
+import re
+import html
+
+
+# Ограничение телеграмма на длину сообщения в боте
+TG_MSG_LIMIT = 4096
+SAFE_LIMIT = 4000 # небольшой запас, чтобы не упереться в предел
 
 
 # Бот
@@ -28,7 +36,6 @@ class ModeState(StatesGroup):
 # Хранилище фото альбомов
 user_albums = defaultdict(list)
 album_tasks = {}
-
 
 
 # Словарь с режимами и их названиями
@@ -150,12 +157,13 @@ async def process_portfolio(message: Message, image_paths: list[str], state: FSM
     mode = user_data.get("mode", "basic")  # Если режима нет, используем 'basic' по умолчанию
 
     try:
-
         feedback = await evaluate_portfolio(mode, image_paths)
     except Exception as e:
         feedback = f"Ошибка при оценке портфолио: {e}"
 
-    await message.answer(f"📊 Оценка портфолио:\n\n{feedback}", parse_mode="HTML")
+    feedback_with_markdown = gpt_markdown_to_telegram_html(feedback)
+
+    await send_feedback(message, feedback)
 
     # Удаляем временные файлы
     for path in image_paths:
@@ -163,6 +171,22 @@ async def process_portfolio(message: Message, image_paths: list[str], state: FSM
             os.remove(path)
         except:
             pass
+
+
+async def send_feedback(message, feedback: str):
+    # Если коротко — шлём как есть с HTML (как у вас)
+    if len(feedback) <= SAFE_LIMIT:
+        await message.answer(f"📊 Оценка портфолио:\n\n{feedback}", parse_mode="HTML")
+        return
+
+    # режем на части (без parse_mode, чтобы не порвать HTML)
+    chunks = split_for_telegram(feedback, SAFE_LIMIT)
+    total = len(chunks)
+    for i, chunk in enumerate(chunks, 1):
+        prefix = "📊 Оценка портфолио" if i == 1 else "Продолжение"
+        await message.answer(f"{prefix} ({i}/{total}):\n\n{chunk}")  # без parse_mode
+
+
 
 @dp.message()
 async def handle_other(message: Message):
@@ -180,3 +204,47 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+# =====TG-MARKDOWN-UTILITIES
+
+def gpt_markdown_to_telegram_html(markdown_text: str) -> str:
+    # Экранируем HTML, чтобы избежать конфликтов
+    text = html.escape(markdown_text)
+
+    # Жирный текст **...**
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+
+    # Курсив *...*
+    text = re.sub(r"\*(.+?)\*", r"<i>\1</i>", text)
+
+    # Маркированные списки
+    text = re.sub(r"^\s*-\s+", "• ", text, flags=re.MULTILINE)
+
+    # Нумерованные списки (без ссылок на группы)
+    text = re.sub(r"^\s*(\d+)\.\s+", r"\1. ", text, flags=re.MULTILINE)
+
+    # <br> → перенос строки
+    text = text.replace("<br>", "\n")
+
+    # Убираем лишние переносы
+    text = re.sub(r"\n{3,}", "\n\n", text)
+
+    return text.strip()
+
+
+def split_for_telegram(text: str, limit: int = SAFE_LIMIT) -> list[str]:
+    """Режем текст «по-человечески»: по \n, затем по пробелу, иначе жёсткий разрез."""
+    parts = []
+    while text:
+        if len(text) <= limit:
+            parts.append(text)
+            break
+        cut = text.rfind("\n", 0, limit)
+        if cut == -1:
+            cut = text.rfind(" ", 0, limit)
+        if cut == -1:
+            cut = limit
+        parts.append(text[:cut])
+        text = text[cut:].lstrip("\n ")
+    return parts

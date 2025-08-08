@@ -2,8 +2,6 @@ import base64
 import os
 from openai import OpenAI
 from config import OPENAI_API_KEY
-import re
-import html
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -287,32 +285,5 @@ async def evaluate_portfolio(mode, image_paths):
         messages= messages
     )
 
-
-    raw_text = response.choices[0].message.content
-    return gpt_markdown_to_telegram_html(raw_text)
-
-
-def gpt_markdown_to_telegram_html(markdown_text: str) -> str:
-    # Экранируем HTML, чтобы избежать конфликтов
-    text = html.escape(markdown_text)
-
-    # Жирный текст **...**
-    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
-
-    # Курсив *...*
-    text = re.sub(r"\*(.+?)\*", r"<i>\1</i>", text)
-
-    # Маркированные списки
-    text = re.sub(r"^\s*-\s+", "• ", text, flags=re.MULTILINE)
-
-    # Нумерованные списки (без ссылок на группы)
-    text = re.sub(r"^\s*(\d+)\.\s+", r"\1. ", text, flags=re.MULTILINE)
-
-    # <br> → перенос строки
-    text = text.replace("<br>", "\n")
-
-    # Убираем лишние переносы
-    text = re.sub(r"\n{3,}", "\n\n", text)
-
-    return text.strip()
+    return response.choices[0].message.content
 
