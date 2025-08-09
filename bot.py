@@ -155,6 +155,12 @@ async def cmd_mode(message: Message, state: FSMContext):
     mode = (await state.get_data()).get("mode", "basic")
     await message.answer("Выберите режим:", reply_markup=make_mode_inline_kb(mode))
 
+
+# Кнопка «Текущий режим:» — ничего не делать, просто вывести название текущего режима
+@dp.message(F.text.startswith("Текущий режим:"))
+    await message.answer("Присылайте изображение или несколько")
+
+
 async def setup_bot_menu(bot):
     cmds = [
         BotCommand(command="menu", description="Показать меню"),
